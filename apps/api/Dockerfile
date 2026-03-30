@@ -47,9 +47,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copy node_modules from builder (includes generated Prisma client)
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 
-# Copy built packages dist
+# Copy built packages dist + package.json
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/packages/database/package.json ./packages/database/
 COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist
@@ -62,6 +61,13 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+# Create workspace symlinks so Node can resolve @domusbet/* from apps/api/
+RUN mkdir -p /app/apps/api/node_modules/@domusbet && \
+    ln -sf /app/packages/database     /app/apps/api/node_modules/@domusbet/database && \
+    ln -sf /app/packages/shared-types /app/apps/api/node_modules/@domusbet/shared-types && \
+    ln -sf /app/packages/shared-utils /app/apps/api/node_modules/@domusbet/shared-utils && \
+    ln -sf /app/packages/config       /app/apps/api/node_modules/@domusbet/config
 
 # Set ownership
 RUN chown -R nestjs:nodejs /app
