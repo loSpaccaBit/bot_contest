@@ -33,11 +33,12 @@ RUN pnpm --filter api build
 # Create self-contained deployment directory (resolves all workspace deps)
 RUN pnpm --filter api --prod deploy --legacy /deploy
 
-# Regenerate Prisma client inside the deploy directory
-# (pnpm deploy does not copy the .prisma generated client from the virtual store)
-RUN cd /deploy && \
-    /app/node_modules/.bin/prisma generate \
-    --schema /app/packages/database/prisma/schema.prisma
+# Copy Prisma generated client into the deploy pnpm store
+# (pnpm deploy does not include .prisma from the virtual store)
+RUN dst=$(find /deploy/node_modules -path "*/@prisma/client/package.json" | head -1 | xargs -I{} dirname {} | xargs -I{} dirname {})/.prisma && \
+    mkdir -p "$dst" && \
+    cp -r /app/node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client "$dst/client" && \
+    echo "Copied .prisma/client to $dst"
 
 # Stage 2: Runner
 FROM node:20-alpine AS runner
