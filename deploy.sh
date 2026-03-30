@@ -89,6 +89,14 @@ docker run --rm \
   sh -c "cd /app && pnpm --filter @domusbet/database db:migrate"
 echo "   ✓ Migrazioni completate"
 
+# ─── Force rolling update (tag :latest non triggera restart automatico) ───────
+echo "   Force update servizi con nuove immagini..."
+docker service update --force --image domusbet/api:latest       ${STACK_NAME}_api       2>/dev/null || true
+docker service update --force --image domusbet/bot:latest       ${STACK_NAME}_bot       2>/dev/null || true
+docker service update --force --image domusbet/worker:latest    ${STACK_NAME}_worker    2>/dev/null || true
+docker service update --force --image domusbet/admin-web:latest ${STACK_NAME}_admin-web 2>/dev/null || true
+echo "   ✓ Rolling update avviato"
+
 # ─── Step 6: Pulizia ─────────────────────────────────────────────────────────
 echo "==> [6/6] Pulizia immagini obsolete..."
 docker image prune -f --filter "until=24h"
