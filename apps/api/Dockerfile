@@ -31,7 +31,8 @@ RUN pnpm --filter @domusbet/database build
 RUN pnpm --filter api build
 
 # Create self-contained deployment directory (resolves all workspace deps)
-RUN pnpm --filter api --prod deploy --legacy /deploy
+RUN pnpm --filter api --prod deploy --legacy /deploy && \
+    cp -r /app/node_modules/.prisma /deploy/node_modules/.prisma
 
 # Stage 2: Runner
 FROM node:20-alpine AS runner
