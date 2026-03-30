@@ -1,6 +1,6 @@
 # Guida Setup VPS — Domusbet Referral
 
-Guida completa per il primo deploy su una VPS Linux (Ubuntu 22.04 / Debian 12) con Docker Swarm, Nginx e Let's Encrypt.
+Guida completa per il primo deploy su una VPS Linux **Ubuntu 24.04 LTS** con Docker Swarm, Nginx e Let's Encrypt.
 
 **Domini:**
 - `api.fcast7.it` → API NestJS + Webhook Telegram Bot
@@ -22,10 +22,22 @@ Guida completa per il primo deploy su una VPS Linux (Ubuntu 22.04 / Debian 12) c
 
 ```bash
 apt update && apt upgrade -y
+apt install -y curl git
 curl -fsSL https://get.docker.com | sh
 usermod -aG docker $USER
-apt install -y certbot git
-newgrp docker  # oppure disconnettiti e riconnettiti
+```
+
+Installa Certbot via snap (metodo ufficiale su Ubuntu 24.04):
+
+```bash
+snap install --classic certbot
+ln -s /snap/bin/certbot /usr/bin/certbot
+```
+
+**Disconnettiti e riconnettiti via SSH** per applicare il gruppo `docker`, oppure:
+
+```bash
+exec su - $USER
 ```
 
 Verifica Docker:
@@ -209,6 +221,83 @@ Aggiungi:
 ```cron
 # Rinnovo certificati Let's Encrypt (due volte al giorno)
 0 3,15 * * * certbot renew --webroot --webroot-path /var/www/certbot --non-interactive --quiet --post-hook "docker service update --force domusbet_nginx" >> /var/log/certbot-renew.log 2>&1
+```
+
+---
+
+## Gestione PostgreSQL
+
+> PostgreSQL **non va installato** sulla VPS — gira come container Docker nel volume `domusbet_postgres_data`. Questi sono i comandi per amministrarlo.
+
+### Connessione interattiva (psql)
+
+```bash
+# Trova il container ID di postgres
+docker ps --filter name=domusbet_postgres --format "{{.ID}}"
+
+# Apri una shell psql
+docker exec -it $(docker ps -q --filter name=domusbet_postgres) \
+  psql -U postgres -d domusbet_referral
+```
+
+Comandi psql utili:
+```sql
+\dt                    -- elenca le tabelle
+\d referrers           -- struttura della tabella referrers
+SELECT count(*) FROM referrers;
+SELECT count(*) FROM submissions;
+\q                     -- esci
+```
+
+### Backup del database
+
+```bash
+# Dump completo (file SQL compresso)
+docker exec $(docker ps -q --filter name=domusbet_postgres) \
+  pg_dump -U postgres domusbet_referral | gzip \
+  > /opt/backups/domusbet_$(date +%Y%m%d_%H%M%S).sql.gz
+```
+
+Crea la directory backup se non esiste:
+```bash
+mkdir -p /opt/backups
+```
+
+### Restore da backup
+
+```bash
+# Decomprimi e importa
+gunzip -c /opt/backups/domusbet_YYYYMMDD_HHMMSS.sql.gz | \
+  docker exec -i $(docker ps -q --filter name=domusbet_postgres) \
+  psql -U postgres -d domusbet_referral
+```
+
+### Cron backup automatico giornaliero
+
+```bash
+crontab -e
+```
+
+Aggiungi:
+```cron
+# Backup PostgreSQL ogni giorno alle 02:00 — mantieni 7 giorni
+0 2 * * * docker exec $(docker ps -q --filter name=domusbet_postgres) pg_dump -U postgres domusbet_referral | gzip > /opt/backups/domusbet_$(date +\%Y\%m\%d).sql.gz && find /opt/backups -name "domusbet_*.sql.gz" -mtime +7 -delete
+```
+
+### Dove sono i dati
+
+I dati persistono nel volume Docker `domusbet_postgres_data`, indipendentemente dal container. Per ispezionare:
+
+```bash
+docker volume inspect domusbet_postgres_data
+# "Mountpoint": "/var/lib/docker/volumes/domusbet_postgres_data/_data"
+```
+
+Per resettare completamente il database (⚠️ distrugge tutti i dati):
+```bash
+docker stack rm domusbet
+docker volume rm domusbet_postgres_data
+# poi rideploya con ./deploy.sh — le migration ripartono da zero
 ```
 
 ---
