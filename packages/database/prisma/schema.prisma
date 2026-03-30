@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  VIEWER
+}
+
+enum SettingType {
+  string
+  number
+  boolean
+  json
+}
+
+model Admin {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  displayName  String    @map("display_name")
+  role             AdminRole @default(ADMIN)
+  isActive         Boolean   @default(true) @map("is_active")
+  lastLoginAt      DateTime? @map("last_login_at")
+  refreshTokenHash String?   @map("refresh_token_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  reviewedSubmissions Submission[]    @relation("ReviewedBy")
+  scoreMovements      ScoreMovement[]
+  auditLogs           AuditLog[]
+
+  @@map("admins")
+}
+
+model Referrer {
+  id               String  @id @default(cuid())
+  telegramId       String  @unique @map("telegram_id")
+  telegramUsername String? @map("telegram_username")
+  firstName        String? @map("first_name")
+  lastName         String? @map("last_name")
+  isActive         Boolean @default(true) @map("is_active")
+  channelInviteLink   String? @map("channel_invite_link")
+  channelInviteLinkId String? @map("channel_invite_link_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  submissions    Submission[]
+  scoreMovements ScoreMovement[]
+
+  @@index([telegramId])
+  @@map("referrers")
+}
+
+model Submission {
+  id                         String           @id @default(cuid())
+  domusbetUsername           String           @map("domusbet_username")
+  normalizedDomusbetUsername String           @unique @map("normalized_domusbet_username")
+  status                     SubmissionStatus @default(PENDING)
+  referrerId                 String           @map("referrer_id")
+  referrer                   Referrer         @relation(fields: [referrerId], references: [id])
+  reviewedById               String?          @map("reviewed_by_id")
+  reviewedBy                 Admin?           @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt                 DateTime?        @map("reviewed_at")
+  adminNotes                 String?          @map("admin_notes")
+  rejectionReason            String?          @map("rejection_reason")
+  createdAt                  DateTime         @default(now()) @map("created_at")
+  updatedAt                  DateTime         @updatedAt @map("updated_at")
+
+  events         SubmissionEvent[]
+  scoreMovements ScoreMovement[]
+
+  @@index([referrerId])
+  @@index([status])
+  @@index([normalizedDomusbetUsername])
+  @@index([createdAt])
+  @@map("submissions")
+}
+
+model SubmissionEvent {
+  id           String     @id @default(cuid())
+  submissionId String     @map("submission_id")
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  eventType    String     @map("event_type")
+  payload      Json?
+  actorId      String?    @map("actor_id")
+  actorType    String?    @map("actor_type")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([submissionId])
+  @@index([createdAt])
+  @@map("submission_events")
+}
+
+model ScoreRule {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String?
+  points      Int
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  scoreMovements ScoreMovement[]
+
+  @@map("score_rules")
+}
+
+model ScoreMovement {
+  id           String     @id @default(cuid())
+  referrerId   String     @map("referrer_id")
+  referrer     Referrer   @relation(fields: [referrerId], references: [id])
+  submissionId String?    @map("submission_id")
+  submission   Submission? @relation(fields: [submissionId], references: [id])
+  scoreRuleId  String?    @map("score_rule_id")
+  scoreRule    ScoreRule? @relation(fields: [scoreRuleId], references: [id])
+  adminId      String?    @map("admin_id")
+  admin        Admin?     @relation(fields: [adminId], references: [id])
+  points       Int
+  reason       String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([referrerId])
+  @@index([submissionId])
+  @@index([createdAt])
+  @@map("score_movements")
+}
+
+model BotMessageTemplate {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  name        String
+  content     String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("bot_message_templates")
+}
+
+model SystemSetting {
+  id          String      @id @default(cuid())
+  key         String      @unique
+  value       String
+  type        SettingType @default(string)
+  description String?
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model LeaderboardTemplate {
+  id        String  @id @default(cuid())
+  name      String  @default("Template classifica")
+  imagePath String  @map("image_path")
+  positions Json    @default("[]")
+  isActive  Boolean @default(false) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("leaderboard_templates")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String?  @map("admin_id")
+  admin      Admin?   @relation(fields: [adminId], references: [id])
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([adminId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

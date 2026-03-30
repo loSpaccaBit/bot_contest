@@ -1,0 +1,52 @@
+# docker-compose.override.yml
+# Used for local development WITHOUT building the app images.
+# Runs only the infrastructure (Postgres + Redis) and exposes them to the host.
+# Start apps directly on the host with: pnpm dev:api / pnpm dev:bot / etc.
+#
+# Usage:
+#   docker compose up -d          # starts only postgres + redis (override disables app services)
+#   pnpm dev:api                   # run API on host
+#   pnpm dev:bot                   # run bot on host
+#   pnpm dev:worker                # run worker on host
+#   pnpm dev:admin                 # run admin dashboard on host
+
+version: '3.9'
+
+services:
+  # ─── Infrastructure only ────────────────────────────────────────────────────
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  # ─── Disable built-image services during local dev ──────────────────────────
+  # Each app runs on the host via pnpm dev:* scripts pointing to localhost infra.
+
+  api:
+    build: !reset null
+    image: !reset null
+    profiles:
+      - docker-only
+    # Prevent this service from starting in the default override mode
+    # Remove from profiles to re-enable Docker-based API
+
+  bot:
+    build: !reset null
+    image: !reset null
+    profiles:
+      - docker-only
+
+  worker:
+    build: !reset null
+    image: !reset null
+    profiles:
+      - docker-only
+
+  admin-web:
+    build: !reset null
+    image: !reset null
+    profiles:
+      - docker-only
