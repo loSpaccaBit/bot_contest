@@ -33,12 +33,13 @@ RUN pnpm --filter api build
 # Create self-contained deployment directory (resolves all workspace deps)
 RUN pnpm --filter api --prod deploy --legacy /deploy
 
-# Copy Prisma generated client into the deploy pnpm store
-# (pnpm deploy does not include .prisma from the virtual store)
-RUN dst=$(find /deploy/node_modules -path "*/@prisma/client/package.json" | head -1 | xargs -I{} dirname {} | xargs -I{} dirname {})/.prisma && \
-    mkdir -p "$dst" && \
-    cp -r /app/node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client "$dst/client" && \
-    echo "Copied .prisma/client to $dst"
+# Copy Prisma generated client — find the @prisma+client dir in both stores
+# and copy .prisma from builder's virtual store to deploy's virtual store
+RUN set -e && \
+    SRC=$(find /app/node_modules/.pnpm -maxdepth 1 -name "@prisma+client*" -type d | head -1) && \
+    DST=$(find /deploy/node_modules/.pnpm -maxdepth 1 -name "@prisma+client*" -type d | head -1) && \
+    echo "SRC=$SRC" && echo "DST=$DST" && \
+    cp -r "$SRC/node_modules/.prisma" "$DST/node_modules/.prisma"
 
 # Stage 2: Runner
 FROM node:20-alpine AS runner
@@ -62,5 +63,4 @@ USER nestjs
 
 EXPOSE 3001
 
-# dist/main because pnpm deploy flattens the app to the root of /deploy
 CMD ["node", "dist/main"]
