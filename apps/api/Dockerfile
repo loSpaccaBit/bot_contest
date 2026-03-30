@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# OpenSSL required by Prisma engine on Alpine
+RUN apk add --no-cache openssl
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -31,6 +34,9 @@ RUN pnpm --filter api build
 FROM node:20-alpine AS runner
 
 WORKDIR /app
+
+# OpenSSL required by Prisma engine on Alpine
+RUN apk add --no-cache openssl
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
