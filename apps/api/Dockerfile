@@ -47,6 +47,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copy node_modules from builder (includes generated Prisma client)
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 
 # Copy built packages dist
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
