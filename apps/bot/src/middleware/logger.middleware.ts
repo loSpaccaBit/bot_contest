@@ -19,7 +19,7 @@ export function loggerMiddleware(logger: pino.Logger): MiddlewareFn<BotContext> 
     // Determine a human-friendly sub-type (e.g. "text", "sticker", "callback_query")
     let messageType: string | undefined;
     if (ctx.message) {
-      const msg = ctx.message as Record<string, unknown>;
+      const msg = ctx.message as unknown as Record<string, unknown>;
       if ('text' in msg) messageType = 'text';
       else if ('photo' in msg) messageType = 'photo';
       else if ('sticker' in msg) messageType = 'sticker';

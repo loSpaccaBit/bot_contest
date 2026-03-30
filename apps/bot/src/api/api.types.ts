@@ -1,4 +1,5 @@
-import type { Context, SessionFlavor } from 'telegraf';
+import type { Context } from 'telegraf';
+import type { SessionContext } from 'telegraf/typings/session';
 import type { MessageService } from '../services/message.service';
 import type { SubmissionService } from '../services/submission.service';
 import type { ApiClient } from './api.client';
@@ -16,7 +17,7 @@ export interface ReferrerContext {
   telegramUsername?: string | null;
 }
 
-export interface BotContext extends Context, SessionFlavor<SessionData> {
+export interface BotContext extends SessionContext<SessionData> {
   apiClient: ApiClient;
   messageService: MessageService;
   submissionService: SubmissionService;
