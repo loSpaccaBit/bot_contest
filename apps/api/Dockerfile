@@ -31,8 +31,15 @@ RUN pnpm --filter @domusbet/database build
 RUN pnpm --filter api build
 
 # Create self-contained deployment directory (resolves all workspace deps)
-RUN pnpm --filter api --prod deploy --legacy /deploy && \
-    cp -r /app/node_modules/.prisma /deploy/node_modules/.prisma
+RUN pnpm --filter api --prod deploy --legacy /deploy
+
+# Copy Prisma generated client into deploy pnpm store (not included by pnpm deploy)
+RUN for d in /deploy/node_modules/.pnpm/@prisma+client*/; do \
+        v=$(basename "$d"); \
+        src="/app/node_modules/.pnpm/$v/node_modules/.prisma"; \
+        dst="$d/node_modules/.prisma"; \
+        [ -d "$src" ] && cp -r "$src" "$dst" && echo "Copied .prisma to $dst"; \
+    done
 
 # Stage 2: Runner
 FROM node:20-alpine AS runner
