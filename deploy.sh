@@ -57,33 +57,37 @@ echo "   ✓ domusbet/admin-web:latest"
 docker build -t domusbet/nginx:latest     "$REPO_DIR/docker/nginx/"
 echo "   ✓ domusbet/nginx:latest"
 
-# ─── Step 4: Migrazione database ─────────────────────────────────────────────
-echo "==> [4/6] Esecuzione migrazioni Prisma..."
-
-# Usiamo l'immagine builder (con Prisma CLI disponibile) non il runner
-# L'immagine domusbet/api:latest è il runner — non ha prisma CLI
-# Costruiamo un'immagine migrate temporanea basata sullo stage builder
+# ─── Step 4: Build immagine migrate ─────────────────────────────────────────
+echo "==> [4/6] Preparazione immagine migrate..."
 docker build \
   --target builder \
   -t domusbet/migrate:latest \
   -f "$REPO_DIR/apps/api/Dockerfile" \
   "$REPO_DIR"
+echo "   ✓ domusbet/migrate:latest"
 
-docker run --rm \
-  --network domusbet_overlay \
-  -e DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
-  domusbet/migrate:latest \
-  sh -c "cd /app && pnpm --filter @domusbet/database db:migrate"
-
-echo "   ✓ Migrazioni completate"
-
-# ─── Step 5: Deploy stack ────────────────────────────────────────────────────
+# ─── Step 5: Deploy stack + migrazioni ───────────────────────────────────────
 echo "==> [5/6] Deploy stack Swarm '$STACK_NAME'..."
 docker stack deploy \
   --compose-file "$COMPOSE_FILE" \
   --prune \
   "$STACK_NAME"
 echo "   ✓ Stack aggiornato"
+
+# Aspetta che postgres sia healthy prima di migrare
+echo "   Attendi postgres..."
+until docker exec $(docker ps -q --filter name=${STACK_NAME}_postgres 2>/dev/null) \
+  pg_isready -U "${POSTGRES_USER}" 2>/dev/null; do
+  sleep 3
+done
+echo "   ✓ Postgres pronto"
+
+docker run --rm \
+  --network ${STACK_NAME}_overlay \
+  -e DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
+  domusbet/migrate:latest \
+  sh -c "cd /app && pnpm --filter @domusbet/database db:migrate"
+echo "   ✓ Migrazioni completate"
 
 # ─── Step 6: Pulizia ─────────────────────────────────────────────────────────
 echo "==> [6/6] Pulizia immagini obsolete..."
