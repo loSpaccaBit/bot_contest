@@ -31,7 +31,7 @@ RUN pnpm --filter @domusbet/database build
 RUN pnpm --filter api build
 
 # Create self-contained deployment directory (resolves all workspace deps)
-RUN pnpm --filter api --prod deploy /deploy
+RUN pnpm --filter api --prod deploy --legacy /deploy
 
 # Stage 2: Runner
 FROM node:20-alpine AS runner
