@@ -17,8 +17,12 @@ COPY apps/api/ ./apps/api/
 # Install all dependencies
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma Client
+# Generate Prisma Client and build workspace packages
 RUN pnpm --filter @domusbet/database exec prisma generate
+RUN pnpm --filter @domusbet/shared-types build
+RUN pnpm --filter @domusbet/shared-utils build
+RUN pnpm --filter @domusbet/config build
+RUN pnpm --filter @domusbet/database build
 
 # Build the API
 RUN pnpm --filter api build
