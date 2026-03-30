@@ -126,6 +126,7 @@ services:
     image: domusbet/worker:latest
     environment:
       NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
       WORKER_API_URL: http://api:3001
       WORKER_API_INTERNAL_SECRET: ${API_INTERNAL_SECRET}
