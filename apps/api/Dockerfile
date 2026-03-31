@@ -51,8 +51,7 @@ COPY --from=builder /app/packages/shared-types/dist ./packages/shared-types/dist
 COPY --from=builder /app/packages/shared-types/package.json ./packages/shared-types/
 COPY --from=builder /app/packages/shared-utils/dist ./packages/shared-utils/dist
 COPY --from=builder /app/packages/shared-utils/package.json ./packages/shared-utils/
-COPY --from=builder /app/packages/config/dist ./packages/config/dist
-COPY --from=builder /app/packages/config/package.json ./packages/config/
+COPY --from=builder /app/packages/config ./packages/config
 
 # Copy api app-level node_modules (pnpm workspace symlinks to @domusbet/*)
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
